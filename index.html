@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>タスク管理アプリ</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2430;
+    --muted: #8a8f98;
+    --accent: #4f6df5;
+    --accent-hover: #3f59d9;
+    --danger: #e5484d;
+    --danger-hover: #cc3d42;
+    --border: #e4e6ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 480px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 20px;
+    text-align: center;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+  }
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .add-btn {
+    padding: 10px 16px;
+    background: var(--accent);
+    color: #fff;
+  }
+  .add-btn:hover {
+    background: var(--accent-hover);
+  }
+  .add-btn:disabled {
+    background: #b9c1e0;
+    cursor: not-allowed;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  li input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .task-text {
+    flex: 1;
+    font-size: 14px;
+    word-break: break-word;
+  }
+  .task-text.done {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .delete-btn {
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid transparent;
+  }
+  .delete-btn:hover {
+    background: #fdecec;
+    color: var(--danger-hover);
+  }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 24px 0;
+  }
+  .stats {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+
+<script>
+const { useState, useEffect, createElement: h } = React;
+
+const STORAGE_KEY = "tasks";
+
+function loadTasks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function App() {
+  const [tasks, setTasks] = useState(loadTasks);
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }, [tasks]);
+
+  function addTask(e) {
+    e.preventDefault();
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setTasks(prev => [...prev, { id: Date.now(), text: trimmed, done: false }]);
+    setText("");
+  }
+
+  function toggleTask(id) {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  }
+
+  function deleteTask(id) {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }
+
+  const doneCount = tasks.filter(t => t.done).length;
+
+  return h("div", { className: "app" },
+    h("h1", null, "タスク管理アプリ"),
+    h("div", { className: "card" },
+      h("form", { onSubmit: addTask },
+        h("input", {
+          type: "text",
+          placeholder: "新しいタスクを入力...",
+          value: text,
+          onChange: e => setText(e.target.value)
+        }),
+        h("button", { type: "submit", className: "add-btn", disabled: !text.trim() }, "追加")
+      ),
+      tasks.length === 0
+        ? h("p", { className: "empty" }, "タスクはまだありません")
+        : h("ul", null,
+            tasks.map(task =>
+              h("li", { key: task.id },
+                h("input", {
+                  type: "checkbox",
+                  checked: task.done,
+                  onChange: () => toggleTask(task.id)
+                }),
+                h("span", { className: "task-text" + (task.done ? " done" : "") }, task.text),
+                h("button", { className: "delete-btn", onClick: () => deleteTask(task.id) }, "削除")
+              )
+            )
+          ),
+      tasks.length > 0
+        ? h("div", { className: "stats" }, `${doneCount} / ${tasks.length} 件完了`)
+        : null
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
